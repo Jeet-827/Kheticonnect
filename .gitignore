@@ -1,10 +1,13 @@
 # Dependencies
 node_modules/
 server/node_modules/
+client/node_modules/
+admin-server/node_modules/
 .pnpm-store/
 
 # Production build output
 dist/
+client/dist/
 build/
 out/
 
@@ -15,6 +18,8 @@ out/
 .env.test.local
 .env.production.local
 server/.env
+client/.env
+admin-server/.env
 
 # Logs & temp files
 *.log

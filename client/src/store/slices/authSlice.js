@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { tokenService } from '../../services/tokenService';
 import { DEMO_FARMER_PROFILE, DEMO_BUYER_PROFILE, DEMO_ADMIN_PROFILE } from '../../data/mockData';
 
-const API_URL = 'http://localhost:5000/api/auth';
+const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/auth` : '/api/auth';
 
 // ─── Async Thunks ─────────────────────────────────────────────────────────────
 

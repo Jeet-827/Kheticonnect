@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useKheti } from '../hooks/useKheti';
-import { selectUser } from '../store/slices/authSlice';
+import { selectUser, selectAccessToken } from '../store/slices/authSlice';
 import { showToast } from '../store/slices/uiSlice';
 import {
   ShieldCheck, Truck, PlusCircle, Trash2, Edit3, BookOpen,
@@ -12,6 +12,7 @@ import {
 export default function AdminPanel() {
   const dispatch = useDispatch();
   const user = useSelector(selectUser);
+  const accessToken = useSelector(selectAccessToken);
   const {
     products, addProduct,
     guides,
@@ -23,59 +24,15 @@ export default function AdminPanel() {
   const [activeAdminTab, setActiveAdminTab] = useState('transport');
 
   // ── Transport Vehicles State ──
-  const [vehiclesList, setVehiclesList] = useState([
-    {
-      id: 'v1',
-      name: 'Ramesh Transport Co.',
-      vehicleType: 'Refrigerated',
-      capacity: '5 MT',
-      from: 'Nashik',
-      to: 'Mumbai',
-      price: 3200,
-      priceUnit: 'trip',
-      rating: 4.8,
-      reviews: 312,
-      eta: '6–8 hrs',
-      features: ['Cold Chain', 'GPS Tracked', 'Insured'],
-      badge: 'Top Rated',
-      available: true,
-      phone: '+91-98765-43210'
-    },
-    {
-      id: 'v2',
-      name: 'Krishna Agri Logistics',
-      vehicleType: 'Container',
-      capacity: '10 MT',
-      from: 'Pune',
-      to: 'Delhi',
-      price: 18500,
-      priceUnit: 'trip',
-      rating: 4.6,
-      reviews: 198,
-      eta: '28–32 hrs',
-      features: ['GPS Tracked', 'Insured'],
-      badge: 'Verified',
-      available: true,
-      phone: '+91-97654-32109'
-    },
-    {
-      id: 'v3',
-      name: 'Suresh Mini Truck',
-      vehicleType: 'Mini Truck',
-      capacity: '1.5 MT',
-      from: 'Nagpur',
-      to: 'Wardha',
-      price: 850,
-      priceUnit: 'trip',
-      rating: 4.5,
-      reviews: 87,
-      eta: '1.5–2 hrs',
-      features: ['GPS Tracked'],
-      badge: null,
-      available: true,
-      phone: '+91-96543-21098'
-    }
-  ]);
+  const [vehiclesList, setVehiclesList] = useState([]);
+
+  // Fetch vehicles from API on mount
+  useEffect(() => {
+    fetch('/api/transport')
+      .then(r => r.json())
+      .then(d => { if (d.success) setVehiclesList(d.vehicles); })
+      .catch(() => {}); // stays empty — will show when loaded
+  }, []);
 
   // Form States
   const [vehicleForm, setVehicleForm] = useState({
@@ -133,7 +90,7 @@ export default function AdminPanel() {
 
   // ── Handlers ──
 
-  const handleAddVehicle = (e) => {
+  const handleAddVehicle = async (e) => {
     e.preventDefault();
     if (!vehicleForm.name || !vehicleForm.from || !vehicleForm.to || !vehicleForm.price) return;
 
@@ -142,49 +99,45 @@ export default function AdminPanel() {
     if (vehicleForm.hasGps) features.push('GPS Tracked');
     if (vehicleForm.hasInsurance) features.push('Insured');
 
-    const newV = {
-      id: `v_${Date.now()}`,
-      name: vehicleForm.name,
-      vehicleType: vehicleForm.vehicleType,
-      capacity: vehicleForm.capacity,
-      from: vehicleForm.from,
-      to: vehicleForm.to,
-      price: Number(vehicleForm.price),
-      priceUnit: 'trip',
-      rating: 5.0,
-      reviews: 1,
-      eta: vehicleForm.eta || '4-6 hrs',
-      features,
-      badge: 'Admin Verified',
-      available: true,
-      phone: vehicleForm.phone || '+91-98000-11111'
+    const body = {
+      name: vehicleForm.name, vehicleType: vehicleForm.vehicleType,
+      capacity: vehicleForm.capacity, from: vehicleForm.from, to: vehicleForm.to,
+      price: Number(vehicleForm.price), eta: vehicleForm.eta || '4–6 hrs',
+      phone: vehicleForm.phone || '+91-90000-00000',
+      features, badge: 'Admin Verified',
     };
 
-    setVehiclesList(prev => [newV, ...prev]);
-    setVehicleForm({
-      name: '',
-      vehicleType: 'Refrigerated',
-      capacity: '5 MT',
-      from: '',
-      to: '',
-      price: '',
-      eta: '4-6 hrs',
-      phone: '',
-      hasColdChain: true,
-      hasGps: true,
-      hasInsurance: true
-    });
-    dispatch(showToast({ message: `Transport vehicle "${newV.name}" added to logistics registry!`, type: 'success' }));
+    try {
+      const res  = await fetch('/api/transport', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success && data.vehicle) {
+        setVehiclesList(prev => [data.vehicle, ...prev]);
+      } else {
+        setVehiclesList(prev => [{ id: `v_${Date.now()}`, ...body, rating: 5.0, reviews: 1, available: true }, ...prev]);
+      }
+    } catch {
+      setVehiclesList(prev => [{ id: `v_${Date.now()}`, ...body, rating: 5.0, reviews: 1, available: true }, ...prev]);
+    }
+
+    setVehicleForm({ name: '', vehicleType: 'Refrigerated', capacity: '5 MT', from: '', to: '', price: '', eta: '4-6 hrs', phone: '', hasColdChain: true, hasGps: true, hasInsurance: true });
+    dispatch(showToast({ message: `Transport vehicle "${vehicleForm.name}" added!`, type: 'success' }));
   };
 
-  const handleDeleteVehicle = (id) => {
-    setVehiclesList(prev => prev.filter(v => v.id !== id));
-    dispatch(showToast({ message: 'Transport vehicle removed from system.', type: 'info' }));
+  const handleDeleteVehicle = async (id) => {
+    try {
+      await fetch(`/api/transport/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } });
+    } catch { /* offline */ }
+    setVehiclesList(prev => prev.filter(v => (v._id || v.id) !== id));
+    dispatch(showToast({ message: 'Vehicle removed.', type: 'info' }));
   };
 
   const toggleVehicleAvailability = (id) => {
-    setVehiclesList(prev => prev.map(v => v.id === id ? { ...v, available: !v.available } : v));
-    dispatch(showToast({ message: 'Vehicle availability status updated.', type: 'info' }));
+    setVehiclesList(prev => prev.map(v => (v._id || v.id) === id ? { ...v, available: !v.available } : v));
+    dispatch(showToast({ message: 'Vehicle availability updated.', type: 'info' }));
   };
 
   const handleAddCrop = (e) => {
@@ -523,7 +476,7 @@ export default function AdminPanel() {
             <div className="space-y-3">
               {vehiclesList.map(v => (
                 <div
-                  key={v.id}
+                  key={v._id || v.id}
                   className="p-4 rounded-2xl border border-slate-100 hover:border-sky-200 bg-slate-50/50 flex flex-wrap items-center justify-between gap-4 transition-all"
                 >
                   <div className="flex items-center gap-3">
@@ -549,7 +502,7 @@ export default function AdminPanel() {
                     </div>
 
                     <button
-                      onClick={() => toggleVehicleAvailability(v.id)}
+                      onClick={() => toggleVehicleAvailability(v._id || v.id)}
                       className={`btn btn-sm text-xs font-extrabold ${
                         v.available
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
@@ -560,7 +513,7 @@ export default function AdminPanel() {
                     </button>
 
                     <button
-                      onClick={() => handleDeleteVehicle(v.id)}
+                      onClick={() => handleDeleteVehicle(v._id || v.id)}
                       className="btn-icon w-8 h-8 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50"
                       title="Delete vehicle"
                     >

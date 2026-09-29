@@ -141,12 +141,10 @@ export default function TransportationSection() {
 
   // Fetch vehicles from API backend
   useEffect(() => {
-    fetch('http://localhost:5000/api/transport')
+    fetch('/api/transport')
       .then(res => res.json())
       .then(data => {
-        if (data.success && data.vehicles) {
-          setVehicles(data.vehicles);
-        }
+        if (data.success && data.vehicles) setVehicles(data.vehicles);
       })
       .catch(() => { /* fallback to INITIAL_VEHICLES */ });
   }, []);
@@ -165,8 +163,20 @@ export default function TransportationSection() {
     setBooked(null);
   }
 
-  function handleConfirm(e) {
+  async function handleConfirm(e) {
     e.preventDefault();
+    try {
+      const accessToken = tokenService.getAccessToken();
+      await fetch('/api/transport/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          vehicleId: bookingVehicle._id || bookingVehicle.id,
+          cargo: form.cargo,
+          scheduledDate: form.date,
+        }),
+      });
+    } catch { /* offline — still show confirmation */ }
     setBooked(bookingVehicle);
     setBookingVehicle(null);
     setForm({ date: '', weight: '', cargo: '', note: '' });
@@ -174,11 +184,13 @@ export default function TransportationSection() {
 
   const handleAddVehicleSubmit = async (e) => {
     e.preventDefault();
+    // Double guard: only admin can add vehicles
+    if (!isAdmin) return;
     if (!newVehicle.name || !newVehicle.from || !newVehicle.to || !newVehicle.price) return;
 
     try {
       const accessToken = tokenService.getAccessToken();
-      const res = await fetch('http://localhost:5000/api/transport', {
+      const res = await fetch('/api/transport', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -517,8 +529,8 @@ export default function TransportationSection() {
         </div>
       )}
 
-      {/* ── ADMIN ADD VEHICLE MODAL ──────────────────────────────────────────── */}
-      {addModalOpen && (
+      {/* ── ADMIN ADD VEHICLE MODAL (Admin only) ─────────────────────────── */}
+      {isAdmin && addModalOpen && (
         <div className="modal-overlay" onClick={() => setAddModalOpen(false)}>
           <div className="modal-card max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="bg-slate-900 p-5 rounded-t-[28px] text-white flex items-center justify-between">
@@ -639,10 +651,12 @@ function VehicleCard({ vehicle: v, onBook }) {
             <Star className="w-3.5 h-3.5 text-blue-600 fill-blue-600" />
             <strong className="text-slate-900">{v.rating}</strong> ({v.reviews} reviews)
           </span>
-          <span className="flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
-            {v.trips.toLocaleString()} trips
-          </span>
+          {v.trips != null && (
+            <span className="flex items-center gap-1">
+              <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
+              {(v.trips || 0).toLocaleString()} trips
+            </span>
+          )}
         </div>
       </div>
 

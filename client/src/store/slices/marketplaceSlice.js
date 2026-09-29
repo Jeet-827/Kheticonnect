@@ -6,32 +6,18 @@ import {
   DEMO_BUYER_PROFILE,
 } from '../../data/mockData';
 
-const loadFromStorage = (key, fallback) => {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const saveToStorage = (key, value) => {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
-};
-
 const marketplaceSlice = createSlice({
   name: 'marketplace',
   initialState: {
-    products: loadFromStorage('kheti_products', INITIAL_PRODUCTS),
-    orders: loadFromStorage('kheti_orders', []),
-    userBids: loadFromStorage('kheti_bids', []),
+    products: INITIAL_PRODUCTS,
+    orders: [],
+    userBids: [],
     mandiRates: INITIAL_MANDI_RATES,
   },
   reducers: {
     // ─── Products ────────────────────────────────────────────────────────────
     addProduct(state, action) {
       state.products.unshift(action.payload);
-      saveToStorage('kheti_products', state.products);
     },
 
     placeBid(state, action) {
@@ -45,7 +31,6 @@ const marketplaceSlice = createSlice({
         { bidderName, amount: bidAmount, time: 'Just now' },
         ...(product.bidsHistory || []),
       ];
-      saveToStorage('kheti_products', state.products);
 
       const bid = {
         id: `bid-${Date.now()}`,
@@ -57,12 +42,10 @@ const marketplaceSlice = createSlice({
         status: 'Highest Bidder',
       };
       state.userBids.unshift(bid);
-      saveToStorage('kheti_bids', state.userBids);
     },
 
     confirmPayment(state, action) {
       state.orders.unshift(action.payload);
-      saveToStorage('kheti_orders', state.orders);
     },
 
     updateMandiRates(state, action) {

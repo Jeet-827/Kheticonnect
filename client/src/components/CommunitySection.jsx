@@ -37,7 +37,7 @@ export default function CommunitySection() {
 
     try {
       const accessToken = tokenService.getAccessToken();
-      const res = await fetch('http://localhost:5000/api/community/guides', {
+      const res = await fetch('/api/community/guides', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

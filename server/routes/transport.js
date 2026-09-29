@@ -1,168 +1,77 @@
 import express from 'express';
+import Vehicle from '../models/Vehicle.js';
 import { protect } from '../middleware/protect.js';
 import { adminOnly } from '../middleware/admin.js';
 
 const router = express.Router();
 
-let transportVehicles = [
-  {
-    id: 'v1',
-    name: 'Ramesh Transport Co.',
-    vehicleType: 'Refrigerated',
-    capacity: '5 MT',
-    from: 'Nashik',
-    to: 'Mumbai',
-    price: 3200,
-    priceUnit: 'trip',
-    rating: 4.8,
-    reviews: 312,
-    eta: '6–8 hrs',
-    features: ['Cold Chain', 'GPS Tracked', 'Insured'],
-    badge: 'Top Rated',
-    avatar: 'truck',
-    available: true,
-    phone: '+91-98765-43210',
-  },
-  {
-    id: 'v2',
-    name: 'Krishna Agri Logistics',
-    vehicleType: 'Container',
-    capacity: '10 MT',
-    from: 'Pune',
-    to: 'Delhi',
-    price: 18500,
-    priceUnit: 'trip',
-    rating: 4.6,
-    reviews: 198,
-    eta: '28–32 hrs',
-    features: ['GPS Tracked', 'Insured'],
-    badge: 'Verified',
-    avatar: 'container',
-    available: true,
-    phone: '+91-97654-32109',
-  },
-  {
-    id: 'v3',
-    name: 'Suresh Mini Truck',
-    vehicleType: 'Mini Truck',
-    capacity: '1.5 MT',
-    from: 'Nagpur',
-    to: 'Wardha',
-    price: 850,
-    priceUnit: 'trip',
-    rating: 4.5,
-    reviews: 87,
-    eta: '1.5–2 hrs',
-    features: ['GPS Tracked'],
-    badge: null,
-    avatar: 'mini-truck',
-    available: true,
-    phone: '+91-96543-21098',
-  }
+// Seed default vehicles if DB is empty
+const SEED = [
+  { name: 'Ramesh Transport Co.', vehicleType: 'Refrigerated', capacity: '5 MT', from: 'Nashik', to: 'Mumbai', price: 3200, eta: '6–8 hrs', features: ['Cold Chain', 'GPS Tracked', 'Insured'], badge: 'Top Rated', rating: 4.8, reviews: 312, phone: '+91-98765-43210' },
+  { name: 'Krishna Agri Logistics', vehicleType: 'Container', capacity: '10 MT', from: 'Pune', to: 'Delhi', price: 18500, eta: '28–32 hrs', features: ['GPS Tracked', 'Insured'], badge: 'Verified', rating: 4.6, reviews: 198, phone: '+91-97654-32109' },
+  { name: 'Suresh Mini Truck', vehicleType: 'Mini Truck', capacity: '1.5 MT', from: 'Nagpur', to: 'Wardha', price: 850, eta: '1.5–2 hrs', features: ['GPS Tracked'], badge: null, rating: 4.5, reviews: 87, phone: '+91-96543-21098' },
 ];
 
-// @desc    Get all transport vehicles
-// @route   GET /api/transport
-// @access  Public
-router.get('/', (req, res) => {
-  res.status(200).json({
-    success: true,
-    count: transportVehicles.length,
-    vehicles: transportVehicles,
-  });
+export const seedVehicles = async () => {
+  const count = await Vehicle.countDocuments();
+  if (count === 0) await Vehicle.insertMany(SEED);
+};
+
+// GET /api/transport — list all vehicles
+router.get('/', async (req, res) => {
+  try {
+    const vehicles = await Vehicle.find().sort({ createdAt: -1 });
+    res.json({ success: true, count: vehicles.length, vehicles });
+  } catch {
+    res.json({ success: true, count: SEED.length, vehicles: SEED });
+  }
 });
 
-// @desc    Book a transport vehicle
-// @route   POST /api/transport/book
-// @access  Private
-router.post('/book', protect, (req, res) => {
+// POST /api/transport/book — book a vehicle (auth required)
+router.post('/book', protect, async (req, res) => {
+  const { vehicleId, pickupLocation, dropLocation, cargo, scheduledDate } = req.body;
+  let vehicle;
+  try { vehicle = await Vehicle.findById(vehicleId); } catch { /* invalid id */ }
+
+  if (!vehicle) return res.status(404).json({ success: false, message: 'Vehicle not found' });
+
+  const booking = {
+    bookingId: `BK-${Date.now()}`,
+    userId: req.user._id,
+    vehicleId,
+    vehicleName: vehicle.name,
+    pickupLocation: pickupLocation || vehicle.from,
+    dropLocation:   dropLocation   || vehicle.to,
+    cargo:          cargo          || 'Agricultural Produce',
+    scheduledDate:  scheduledDate  || new Date().toISOString().split('T')[0],
+    totalAmount:    vehicle.price,
+    status: 'Confirmed',
+  };
+  res.status(201).json({ success: true, message: 'Booked successfully!', booking });
+});
+
+// POST /api/transport — add vehicle (admin only)
+router.post('/', protect, adminOnly, async (req, res) => {
+  const { name, vehicleType, capacity, from, to, price, eta, features, phone, badge } = req.body;
+  if (!name || !vehicleType || !capacity || !from || !to || !price)
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
+
   try {
-    const { vehicleId, pickupLocation, dropLocation, cargo, scheduledDate } = req.body;
-    const vehicle = transportVehicles.find(v => v.id === vehicleId);
-
-    if (!vehicle) {
-      return res.status(404).json({ success: false, message: 'Vehicle not found' });
-    }
-
-    const booking = {
-      bookingId: `BK-${Date.now()}`,
-      userId: req.user._id,
-      vehicleId,
-      vehicleName: vehicle.name,
-      pickupLocation: pickupLocation || vehicle.from,
-      dropLocation: dropLocation || vehicle.to,
-      cargo: cargo || 'Agricultural Produce',
-      scheduledDate: scheduledDate || new Date().toISOString().split('T')[0],
-      totalAmount: vehicle.price,
-      status: 'Confirmed'
-    };
-
-    res.status(201).json({
-      success: true,
-      message: 'Transport vehicle booked successfully!',
-      booking
-    });
+    const v = await Vehicle.create({ name, vehicleType, capacity, from, to, price: Number(price), eta, features, phone, badge });
+    res.status(201).json({ success: true, message: 'Vehicle added', vehicle: v });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
-// @desc    Add transport vehicle (Admin Only)
-// @route   POST /api/transport
-// @access  Private / Admin Only
-router.post('/', protect, adminOnly, (req, res) => {
+// DELETE /api/transport/:id — remove vehicle (admin only)
+router.delete('/:id', protect, adminOnly, async (req, res) => {
   try {
-    const { name, vehicleType, capacity, from, to, price, eta, features, phone, badge } = req.body;
-
-    if (!name || !vehicleType || !capacity || !from || !to || !price) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide all required vehicle details: name, vehicleType, capacity, from, to, price'
-      });
-    }
-
-    const newVehicle = {
-      id: `v_${Date.now()}`,
-      name,
-      vehicleType,
-      capacity,
-      from,
-      to,
-      price: Number(price),
-      priceUnit: 'trip',
-      rating: 5.0,
-      reviews: 1,
-      eta: eta || '4–6 hrs',
-      features: features || ['GPS Tracked', 'Insured'],
-      badge: badge || 'Admin Verified',
-      avatar: 'truck',
-      available: true,
-      phone: phone || '+91-90000-00000',
-    };
-
-    transportVehicles.unshift(newVehicle);
-
-    res.status(201).json({
-      success: true,
-      message: 'Vehicle added successfully by Admin',
-      vehicle: newVehicle,
-      vehicles: transportVehicles,
-    });
+    await Vehicle.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Vehicle removed' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-});
-
-// @desc    Delete transport vehicle (Admin Only)
-// @route   DELETE /api/transport/:id
-// @access  Private / Admin Only
-router.delete('/:id', protect, adminOnly, (req, res) => {
-  transportVehicles = transportVehicles.filter(v => v.id !== req.params.id);
-  res.status(200).json({
-    success: true,
-    message: 'Vehicle removed by Administrator',
-    vehicles: transportVehicles
-  });
 });
 
 export default router;

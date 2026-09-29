@@ -1,32 +1,15 @@
 {
-  "name": "kheti-connect",
-  "private": true,
+  "name": "kheticonnect-root",
   "version": "1.0.0",
-  "type": "module",
+  "description": "KhetiConnect - Agricultural Marketplace & Logistics Platform",
+  "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "install:all": "npm --prefix server install && npm --prefix client install && npm --prefix admin-server install",
+    "build": "npm --prefix client install && npm --prefix client run build",
+    "start": "npm --prefix server install && npm --prefix server start",
+    "start:admin": "npm --prefix admin-server install && npm --prefix admin-server start"
   },
-  "dependencies": {
-    "@reduxjs/toolkit": "^2.13.0",
-    "canvas-confetti": "^1.9.2",
-    "lucide-react": "^0.344.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-icons": "^5.7.0",
-    "react-redux": "^9.3.0",
-    "recharts": "^3.10.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.3",
-    "@types/react": "^18.2.56",
-    "@types/react-dom": "^18.2.19",
-    "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.5.4",
-    "postcss": "^8.5.26",
-    "tailwindcss": "^3.4.1",
-    "vite": "^5.1.4"
-  }
+  "keywords": ["agriculture", "marketplace", "logistics", "react", "express", "mongodb"],
+  "author": "",
+  "license": "ISC"
 }

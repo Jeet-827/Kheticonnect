@@ -1,0 +1,38 @@
+services:
+  # ── 1. Main Full-Stack Application (Frontend + Backend API) ────────────────
+  - type: web
+    name: kheticonnect-app
+    runtime: node
+    plan: free
+    buildCommand: npm run build && npm --prefix server install
+    startCommand: npm --prefix server start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false # Set your MongoDB Atlas connection string in Render Dashboard
+
+  # ── 2. Standalone Admin Server & Portal (Optional / Dedicated) ─────────────
+  - type: web
+    name: kheticonnect-admin
+    runtime: node
+    plan: free
+    buildCommand: npm --prefix admin-server install
+    startCommand: npm --prefix admin-server start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: ADMIN_EMAIL
+        value: admin@kheti.com
+      - key: ADMIN_PASSWORD
+        value: admin123
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false # Set your MongoDB Atlas connection string in Render Dashboard
