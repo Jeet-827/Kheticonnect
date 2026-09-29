@@ -89,8 +89,13 @@ app.use((err, req, res, next) => {
 
 // ─── Start Server ────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`[INFO] Kheti-Connect Backend running on port ${PORT}`);
-  console.log(`[INFO] Health status: http://localhost:${PORT}/api/health`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[INFO] Kheti-Connect Backend running on port ${PORT}`);
+    console.log(`[INFO] Health status: http://localhost:${PORT}/api/health`);
+  });
+}
+
+export default app;
+
 
