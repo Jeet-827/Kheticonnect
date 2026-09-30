@@ -51,7 +51,7 @@ mongoose.connect(MONGO_URI)
   .catch(err => console.warn('[Admin] MongoDB offline:', err.message));
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors());
+app.use(cors({origin:'https://kheticonnect-3.onrender.com',credentials: true}));
 app.use(express.json());
 app.use(express.static(__dirname)); // Serve index.html
 
