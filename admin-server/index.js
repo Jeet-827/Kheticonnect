@@ -129,10 +129,14 @@ app.patch('/admin/vehicles/:id', adminAuth, async (req, res) => {
 });
 
 // Serve admin panel HTML for all other GET routes
-app.get('*', (req, res) => {
+app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`[Admin Server] Running at http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[Admin Server] Running at http://localhost:${PORT}`);
+  });
+}
+
+export default app;

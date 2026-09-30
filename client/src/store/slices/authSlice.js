@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { tokenService } from '../../services/tokenService';
-import { DEMO_FARMER_PROFILE, DEMO_BUYER_PROFILE, DEMO_ADMIN_PROFILE } from '../../data/mockData';
+import { DEMO_FARMER_PROFILE, DEMO_BUYER_PROFILE } from '../../data/mockData';
 
 const API_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/auth` : '/api/auth';
 
@@ -12,9 +12,7 @@ export const initAuth = createAsyncThunk('auth/init', async (_, { rejectWithValu
 
   // Demo mode
   if (refreshToken.startsWith('demo-refresh-')) {
-    let demoUser = DEMO_BUYER_PROFILE;
-    if (refreshToken.includes('farmer')) demoUser = DEMO_FARMER_PROFILE;
-    if (refreshToken.includes('admin')) demoUser = DEMO_ADMIN_PROFILE;
+    const demoUser = refreshToken.includes('farmer') ? DEMO_FARMER_PROFILE : DEMO_BUYER_PROFILE;
     const demoAccessToken = `demo-access-${demoUser.role}-${Date.now()}`;
     tokenService.setAccessToken(demoAccessToken);
     return { user: demoUser, accessToken: demoAccessToken };
@@ -37,9 +35,7 @@ export const initAuth = createAsyncThunk('auth/init', async (_, { rejectWithValu
     return rejectWithValue('invalid_refresh');
   } catch {
     // Offline fallback
-    let demoUser = DEMO_BUYER_PROFILE;
-    if (refreshToken.includes('farmer')) demoUser = DEMO_FARMER_PROFILE;
-    if (refreshToken.includes('admin')) demoUser = DEMO_ADMIN_PROFILE;
+    const demoUser = refreshToken.includes('farmer') ? DEMO_FARMER_PROFILE : DEMO_BUYER_PROFILE;
     const demoAccessToken = `demo-access-fallback-${Date.now()}`;
     tokenService.setAccessToken(demoAccessToken);
     return { user: demoUser, accessToken: demoAccessToken };
@@ -64,8 +60,7 @@ export const loginUser = createAsyncThunk('auth/login', async ({ email, password
   } catch {
     // Offline demo fallback
     const isFarmer = email.toLowerCase().includes('farmer');
-    const isAdmin = email.toLowerCase().includes('admin');
-    const demoUser = isAdmin ? DEMO_ADMIN_PROFILE : isFarmer ? DEMO_FARMER_PROFILE : DEMO_BUYER_PROFILE;
+    const demoUser = isFarmer ? DEMO_FARMER_PROFILE : DEMO_BUYER_PROFILE;
     const demoRefreshToken = `demo-refresh-${demoUser.role}-${Date.now()}`;
     const demoAccessToken = `demo-access-${Date.now()}`;
     tokenService.setAccessToken(demoAccessToken);
@@ -117,11 +112,9 @@ export const logoutUser = createAsyncThunk('auth/logout', async () => {
 });
 
 export const demoLoginUser = createAsyncThunk('auth/demoLogin', async (role) => {
-  let demoUser = DEMO_BUYER_PROFILE;
-  if (role === 'farmer') demoUser = DEMO_FARMER_PROFILE;
-  if (role === 'admin') demoUser = DEMO_ADMIN_PROFILE;
-  const demoRefreshToken = `demo-refresh-${role}-${Date.now()}`;
-  const demoAccessToken = `demo-access-${role}-${Date.now()}`;
+  const demoUser = role === 'farmer' ? DEMO_FARMER_PROFILE : DEMO_BUYER_PROFILE;
+  const demoRefreshToken = `demo-refresh-${demoUser.role}-${Date.now()}`;
+  const demoAccessToken = `demo-access-${demoUser.role}-${Date.now()}`;
   tokenService.setAccessToken(demoAccessToken);
   tokenService.setRefreshToken(demoRefreshToken, 7);
   return { user: demoUser, accessToken: demoAccessToken };
@@ -134,19 +127,73 @@ export const updateUserProfile = createAsyncThunk('auth/updateUserProfile', asyn
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
+      credentials: 'include',
       body: JSON.stringify(profileData),
     });
     const data = await res.json();
-    if (data.success) {
+    if (data.success && data.user) {
       return data.user;
     }
-    // Fallback if token rejected or server returned error
-    return profileData;
-  } catch {
+    return rejectWithValue(data.message || 'Failed to update profile');
+  } catch (err) {
     // Demo/offline update profile fallback
     return profileData;
+  }
+});
+
+export const fetchUserProfile = createAsyncThunk('auth/fetchUserProfile', async (_, { rejectWithValue }) => {
+  const accessToken = tokenService.getAccessToken();
+  try {
+    const res = await fetch(`${API_URL}/me`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      credentials: 'include',
+    });
+
+    if (res.status === 401) {
+      // Access token might be expired, attempt refresh
+      const refreshToken = tokenService.getRefreshToken();
+      if (refreshToken) {
+        const refreshRes = await fetch(`${API_URL}/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ refreshToken }),
+        });
+        const refreshData = await refreshRes.json();
+        if (refreshData.success && refreshData.accessToken) {
+          tokenService.setAccessToken(refreshData.accessToken);
+          if (refreshData.refreshToken) tokenService.setRefreshToken(refreshData.refreshToken, 7);
+
+          const retryRes = await fetch(`${API_URL}/me`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${refreshData.accessToken}`,
+            },
+            credentials: 'include',
+          });
+          const retryData = await retryRes.json();
+          if (retryData.success && retryData.user) {
+            return retryData.user;
+          }
+        }
+      }
+      return rejectWithValue('Session expired. Please log in again.');
+    }
+
+    const data = await res.json();
+    if (data.success && data.user) {
+      return data.user;
+    }
+    return rejectWithValue(data.message || 'Failed to fetch user profile');
+  } catch (err) {
+    return rejectWithValue(err.message || 'Backend connection error');
   }
 });
 
@@ -158,11 +205,16 @@ const authSlice = createSlice({
     user: null,
     accessToken: null,
     loading: true,
+    profileLoading: false,
+    profileUpdating: false,
+    profileError: null,
+    profileLastFetched: null,
     error: null,
     isAuthenticated: false,
   },
   reducers: {
     clearError: (state) => { state.error = null; },
+    clearProfileError: (state) => { state.profileError = null; },
     updateProfile: (state, action) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
@@ -218,6 +270,10 @@ const authSlice = createSlice({
       state.accessToken = null;
       state.isAuthenticated = false;
       state.loading = false;
+      state.profileLoading = false;
+      state.profileUpdating = false;
+      state.profileError = null;
+      state.profileLastFetched = null;
     });
 
     // Demo Login
@@ -226,23 +282,61 @@ const authSlice = createSlice({
       state.accessToken = action.payload.accessToken;
       state.isAuthenticated = true;
       state.loading = false;
+      state.profileLastFetched = new Date().toISOString();
     });
 
+    // Fetch Profile
+    builder
+      .addCase(fetchUserProfile.pending, (state) => {
+        state.profileLoading = true;
+        state.profileError = null;
+      })
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        state.profileLoading = false;
+        state.profileError = null;
+        state.profileLastFetched = new Date().toISOString();
+        if (action.payload) {
+          state.user = { ...(state.user || {}), ...action.payload };
+        }
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
+        state.profileLoading = false;
+        state.profileError = action.payload;
+      });
+
     // Update Profile
-    builder.addCase(updateUserProfile.fulfilled, (state, action) => {
-      if (state.user) {
-        state.user = { ...state.user, ...action.payload };
-      }
-    });
+    builder
+      .addCase(updateUserProfile.pending, (state) => {
+        state.profileUpdating = true;
+        state.profileError = null;
+      })
+      .addCase(updateUserProfile.fulfilled, (state, action) => {
+        state.profileUpdating = false;
+        state.profileError = null;
+        state.profileLastFetched = new Date().toISOString();
+        if (state.user) {
+          state.user = { ...state.user, ...action.payload };
+        } else {
+          state.user = action.payload;
+        }
+      })
+      .addCase(updateUserProfile.rejected, (state, action) => {
+        state.profileUpdating = false;
+        state.profileError = action.payload;
+      });
   },
 });
 
-export const { clearError, updateProfile } = authSlice.actions;
+export const { clearError, clearProfileError, updateProfile } = authSlice.actions;
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 export const selectUser = (state) => state.auth.user;
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectAuthLoading = (state) => state.auth.loading;
+export const selectProfileLoading = (state) => state.auth.profileLoading;
+export const selectProfileUpdating = (state) => state.auth.profileUpdating;
+export const selectProfileError = (state) => state.auth.profileError;
+export const selectProfileLastFetched = (state) => state.auth.profileLastFetched;
 export const selectAuthError = (state) => state.auth.error;
 export const selectAccessToken = (state) => state.auth.accessToken;
 

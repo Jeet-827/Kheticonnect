@@ -149,8 +149,6 @@ export default function TransportationSection() {
       .catch(() => { /* fallback to INITIAL_VEHICLES */ });
   }, []);
 
-  const isAdmin = user?.role === 'admin';
-
   const filtered = vehicles.filter(v => {
     const matchType = vehicleFilter === 'All' || v.vehicleType === vehicleFilter;
     const matchFrom = !searchFrom || v.from.toLowerCase().includes(searchFrom.toLowerCase());
@@ -184,8 +182,6 @@ export default function TransportationSection() {
 
   const handleAddVehicleSubmit = async (e) => {
     e.preventDefault();
-    // Double guard: only admin can add vehicles
-    if (!isAdmin) return;
     if (!newVehicle.name || !newVehicle.from || !newVehicle.to || !newVehicle.price) return;
 
     try {
@@ -330,14 +326,12 @@ export default function TransportationSection() {
             </div>
 
             <div className="flex items-center gap-3 ml-auto">
-              {isAdmin && (
-                <button
-                  onClick={() => setAddModalOpen(true)}
-                  className="btn btn-sm bg-slate-900 text-white hover:bg-slate-800 font-extrabold flex items-center gap-1.5 shadow-md"
-                >
-                  <Plus className="w-4 h-4 text-sky-400" /> Add Vehicle (Admin)
-                </button>
-              )}
+              <button
+                onClick={() => setAddModalOpen(true)}
+                className="btn btn-sm bg-slate-900 text-white hover:bg-slate-800 font-extrabold flex items-center gap-1.5 shadow-md"
+              >
+                <Plus className="w-4 h-4 text-sky-400" /> List Your Transport Vehicle
+              </button>
               {(vehicleFilter !== 'All' || searchFrom || searchTo) && (
                 <button
                   onClick={() => { setVehicleFilter('All'); setSearchFrom(''); setSearchTo(''); }}
@@ -529,14 +523,14 @@ export default function TransportationSection() {
         </div>
       )}
 
-      {/* ── ADMIN ADD VEHICLE MODAL (Admin only) ─────────────────────────── */}
-      {isAdmin && addModalOpen && (
+      {/* ── ADD VEHICLE MODAL ─────────────────────────── */}
+      {addModalOpen && (
         <div className="modal-overlay" onClick={() => setAddModalOpen(false)}>
           <div className="modal-card max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="bg-slate-900 p-5 rounded-t-[28px] text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Truck className="w-5 h-5 text-sky-400" />
-                <h3 className="font-extrabold text-base">Add New Transport Vehicle (Admin)</h3>
+                <h3 className="font-extrabold text-base">List New Transport Vehicle</h3>
               </div>
               <button onClick={() => setAddModalOpen(false)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
                 <X className="w-4 h-4" />

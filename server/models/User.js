@@ -55,6 +55,22 @@ const UserSchema = new mongoose.Schema({
       return date.toLocaleString('en-US', { month: 'short', year: 'numeric' });
     }
   },
+  acresCount: {
+    type: Number,
+    default: null
+  },
+  businessType: {
+    type: String,
+    default: ''
+  },
+  department: {
+    type: String,
+    default: ''
+  },
+  bio: {
+    type: String,
+    default: ''
+  },
   createdAt: {
     type: Date,
     default: Date.now

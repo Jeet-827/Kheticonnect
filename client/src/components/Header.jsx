@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { 
   Sprout, Search, ShoppingCart, PlusCircle, TrendingUp, 
   ArrowUpRight, ArrowDownRight, X, LogOut, BookOpen, Landmark, 
-  ChevronRight, Sparkles, LayoutDashboard, User
+  ChevronRight, LayoutDashboard, User
 } from 'lucide-react';
 import { GiWheat } from 'react-icons/gi';
 import { FaBook, FaStar, FaBoxOpen, FaTruck, FaShoppingCart } from 'react-icons/fa';
@@ -16,7 +16,6 @@ const NAV = [
   { id: 'trust',       label: 'Trust & Reviews', icon: <FaStar /> },
   { id: 'orders',      label: 'My Orders',       icon: <FaBoxOpen /> },
   { id: 'transport',   label: 'Transportation',  icon: <FaTruck /> },
-  { id: 'admin',       label: 'Admin Panel',     icon: <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" /> },
 ];
 
 export default function Header() {
@@ -53,8 +52,8 @@ export default function Header() {
   const matchedProducts = q ? products.filter(p => 
     p.title.toLowerCase().includes(q) || 
     p.category.toLowerCase().includes(q) || 
-    p.farmerLocation.toLowerCase().includes(q) ||
-    p.farmerName.toLowerCase().includes(q)
+    (p.farmerLocation || '').toLowerCase().includes(q) ||
+    (p.farmerName || '').toLowerCase().includes(q)
   ).slice(0, 4) : [];
 
   const matchedGuides = q ? (guides || []).filter(g => 
@@ -269,19 +268,15 @@ export default function Header() {
             <Search className="w-4 h-4" />
           </button>
 
-          {/* Role toggle */}
+          {/* Role toggle — Farmer / Buyer only */}
           <div className="hidden sm:flex items-center bg-slate-100 rounded-full p-1 border border-slate-200/80">
             {[
               { role: 'farmer', icon: <GiWheat />, label: 'Farmer', activeClass: 'bg-blue-600 text-white shadow' },
               { role: 'buyer',  icon: <FaShoppingCart />, label: 'Buyer',  activeClass: 'bg-slate-900 text-white shadow' },
-              { role: 'admin',  icon: <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />, label: 'Admin', activeClass: 'bg-indigo-700 text-white shadow' },
             ].map(({ role, icon, label, activeClass }) => (
               <button
                 key={role}
-                onClick={() => {
-                  setUserRole(role);
-                  if (role === 'admin') setActiveTab('admin');
-                }}
+                onClick={() => setUserRole(role)}
                 className={`px-3 py-1.5 rounded-full text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 ${userRole === role ? activeClass : 'text-slate-500 hover:text-slate-700'}`}
               >
                 {icon} {label}
@@ -293,13 +288,6 @@ export default function Header() {
           {userRole === 'farmer' && (
             <button onClick={() => setIsAddModalOpen(true)} className="btn btn-primary btn-sm hidden sm:flex">
               <PlusCircle className="w-4 h-4" /> List Crop
-            </button>
-          )}
-
-          {/* Admin Quick CTA */}
-          {userRole === 'admin' && (
-            <button onClick={() => setActiveTab('admin')} className="btn btn-sm bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold hidden sm:flex items-center gap-1.5 shadow">
-              <ShieldCheck className="w-4 h-4" /> Admin Controls
             </button>
           )}
 
@@ -321,10 +309,21 @@ export default function Header() {
             <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
               <button
                 onClick={() => setActiveTab('profile')}
-                className="w-9 h-9 rounded-full bg-slate-900 text-white font-extrabold text-xs flex items-center justify-center shadow hover:bg-blue-600 transition-colors"
+                className="w-9 h-9 rounded-full bg-slate-900 text-white font-extrabold text-xs flex items-center justify-center shadow overflow-hidden hover:ring-2 hover:ring-blue-600 transition-all"
                 title={`${user.name} — View Profile`}
               >
-                {user.name.charAt(0)}
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  user.name?.charAt(0) || 'U'
+                )}
               </button>
               <button
                 onClick={logout}
@@ -372,11 +371,10 @@ export default function Header() {
                 <span>{label}</span>
               </button>
             ))}
-            {/* Mobile role toggle */}
+            {/* Mobile role toggle — Farmer / Buyer only */}
             <div className="sm:hidden ml-auto flex shrink-0 items-center bg-slate-100 rounded-full p-0.5 border border-slate-200 my-1">
               <button onClick={() => setUserRole('farmer')} className={`px-2 py-1 rounded-full text-[11px] font-bold transition-all ${userRole === 'farmer' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}><GiWheat /></button>
               <button onClick={() => setUserRole('buyer')}  className={`px-2 py-1 rounded-full text-[11px] font-bold transition-all ${userRole === 'buyer'  ? 'bg-slate-900 text-white' : 'text-slate-500'}`}><FaShoppingCart /></button>
-              <button onClick={() => { setUserRole('admin'); setActiveTab('admin'); }} className={`px-2 py-1 rounded-full text-[11px] font-bold transition-all ${userRole === 'admin' ? 'bg-indigo-700 text-white' : 'text-slate-500'}`}><ShieldCheck className="w-3 h-3" /></button>
             </div>
           </div>
         </div>
@@ -384,4 +382,3 @@ export default function Header() {
     </header>
   );
 }
-

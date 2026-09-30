@@ -7,6 +7,8 @@ import { initAuth } from './store/slices/authSlice';
 import { selectIsAuthenticated, selectAuthLoading } from './store/slices/authSlice';
 import { selectActiveTab, selectUserRole, setUserRole } from './store/slices/uiSlice';
 import { selectUser } from './store/slices/authSlice';
+import { fetchProducts, fetchMandiRates } from './store/slices/marketplaceSlice';
+import { fetchGuides, fetchSchemes, fetchForumThreads, fetchReviews } from './store/slices/communitySlice';
 
 // Components
 import Header from './components/Header';
@@ -24,7 +26,6 @@ import TransportationSection from './components/TransportationSection';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import ProfilePage from './components/ProfilePage';
-import AdminPanel from './components/AdminPanel';
 
 // ─── App Content ─────────────────────────────────────────────────────────────
 function AppContent() {
@@ -45,6 +46,18 @@ function AppContent() {
       dispatch(setUserRole(user.role));
     }
   }, [user, dispatch]);
+
+  // Fetch all backend data once authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchProducts());
+      dispatch(fetchMandiRates());
+      dispatch(fetchGuides());
+      dispatch(fetchSchemes());
+      dispatch(fetchForumThreads());
+      dispatch(fetchReviews());
+    }
+  }, [isAuthenticated, dispatch]);
 
   if (loading) {
     return (
@@ -76,7 +89,6 @@ function AppContent() {
         {activeTab === 'trust'       && <FeedbackSection />}
         {activeTab === 'orders'      && <MyOrdersBids />}
         {activeTab === 'transport'   && <TransportationSection />}
-        {activeTab === 'admin'       && <AdminPanel />}
         {activeTab === 'profile'     && <ProfilePage />}
       </main>
 

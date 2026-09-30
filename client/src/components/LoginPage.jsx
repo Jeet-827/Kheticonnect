@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Sprout, ShieldCheck, CheckCircle2, ArrowRight, Eye, EyeOff, Loader2, Sparkles } from 'lucide-react';
 import { GiWheat } from 'react-icons/gi';
-import { FaShoppingCart, FaExclamationTriangle, FaBolt } from 'react-icons/fa';
+import { FaShoppingCart, FaExclamationTriangle } from 'react-icons/fa';
 
 export default function LoginPage() {
-  const { login, demoLogin, register } = useAuth();
+  const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -283,36 +283,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Access Bar */}
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <p className="text-center text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-center gap-1.5">
-              <FaBolt className="text-blue-600" /> Instant Demo Access (No password required)
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => demoLogin('farmer')}
-                className="px-2 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1 transition-all shadow-sm"
-              >
-                <GiWheat className="text-blue-600" /> Farmer
-              </button>
-              <button
-                type="button"
-                onClick={() => demoLogin('buyer')}
-                className="px-2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 border border-slate-300 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1 transition-all shadow-sm"
-              >
-                <FaShoppingCart className="text-slate-700" /> Buyer
-              </button>
-              <button
-                type="button"
-                onClick={() => demoLogin('admin')}
-                className="px-2 py-2.5 bg-slate-900 hover:bg-slate-800 text-white border border-slate-800 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1 transition-all shadow-sm"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" /> Admin
-              </button>
-            </div>
-          </div>
 
           {/* Toggle Tab */}
           <div className="text-center mt-6 text-xs text-slate-500 font-semibold">

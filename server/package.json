@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "npx nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test test/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -23,5 +23,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.3",
     "morgan": "^1.12.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.0"
   }
 }

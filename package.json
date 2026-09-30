@@ -7,7 +7,8 @@
     "install:all": "npm --prefix server install && npm --prefix client install && npm --prefix admin-server install",
     "build": "npm --prefix client install && npm --prefix client run build",
     "start": "npm --prefix server install && npm --prefix server start",
-    "start:admin": "npm --prefix admin-server install && npm --prefix admin-server start"
+    "start:admin": "npm --prefix admin-server install && npm --prefix admin-server start",
+    "test": "npm --prefix server test && npm --prefix admin-server test"
   },
   "keywords": ["agriculture", "marketplace", "logistics", "react", "express", "mongodb"],
   "author": "",

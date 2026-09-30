@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { useKheti } from '../hooks/useKheti';
 import { selectUser } from '../store/slices/authSlice';
-import { addGuide } from '../store/slices/communitySlice';
-import { tokenService } from '../services/tokenService';
-import { showToast, clearToast } from '../store/slices/uiSlice';
-import { PlusCircle, Send, ExternalLink, X, BookOpen, MessageCircle, Landmark, TrendingUp, ArrowUpRight, ArrowDownRight, Plus, Sparkles } from 'lucide-react';
+import { PlusCircle, Send, ExternalLink, X, BookOpen, MessageCircle, Landmark, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 const SUBTABS = [
   { id: 'forum',   label: 'Forum Q&A',     icon: <MessageCircle className="w-4 h-4" /> },
@@ -15,7 +12,6 @@ const SUBTABS = [
 ];
 
 export default function CommunitySection() {
-  const dispatch = useDispatch();
   const user = useSelector(selectUser);
   const { guides, schemes, forumThreads, mandiRates, searchTerm, setSearchTerm, addForumThread, addReply } = useKheti();
   const [tab, setTab]           = useState('forum');
@@ -25,44 +21,7 @@ export default function CommunitySection() {
   const [guide, setGuide]       = useState(null);
   const [q, setQ]               = useState({ title: '', content: '' });
 
-  // Admin Add Guide State
-  const [guideModalOpen, setGuideModalOpen] = useState(false);
-  const [newGuideData, setNewGuideData]     = useState({ title: '', category: 'Organic Farming', readTime: '5 min read', author: '', summary: '', image: '' });
 
-  const isAdmin = user?.role === 'admin';
-
-  const handlePostGuide = async (e) => {
-    e.preventDefault();
-    if (!newGuideData.title || !newGuideData.summary) return;
-
-    try {
-      const accessToken = tokenService.getAccessToken();
-      const res = await fetch('/api/community/guides', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(newGuideData)
-      });
-      const data = await res.json();
-      if (data.success && data.guide) {
-        dispatch(addGuide(data.guide));
-        dispatch(showToast({ message: 'Advisory guide posted to backend successfully!', type: 'success' }));
-      } else {
-        const fallback = { id: `g-${Date.now()}`, ...newGuideData, author: newGuideData.author || 'Kheti Advisory Board', image: newGuideData.image || 'https://images.unsplash.com/photo-1563514227147-6d2ff665a6a0?q=80&w=600' };
-        dispatch(addGuide(fallback));
-        dispatch(showToast({ message: 'Guide added (Demo Admin Mode)!', type: 'success' }));
-      }
-    } catch {
-      const fallback = { id: `g-${Date.now()}`, ...newGuideData, author: newGuideData.author || 'Kheti Advisory Board', image: newGuideData.image || 'https://images.unsplash.com/photo-1563514227147-6d2ff665a6a0?q=80&w=600' };
-      dispatch(addGuide(fallback));
-      dispatch(showToast({ message: 'Guide added (Local Mode)!', type: 'success' }));
-    }
-    setTimeout(() => dispatch(clearToast()), 3500);
-    setGuideModalOpen(false);
-    setNewGuideData({ title: '', category: 'Organic Farming', readTime: '5 min read', author: '', summary: '', image: '' });
-  };
 
   const sq = searchTerm.trim().toLowerCase();
 
@@ -85,12 +44,12 @@ export default function CommunitySection() {
   const postQ = e => {
     e.preventDefault();
     if (!q.title.trim()) return;
-    addForumThread({ id: `th-${Date.now()}`, authorName: 'You (Kheti Member)', authorRole: 'Community', title: q.title, content: q.content || 'Seeking advice.', likes: 1, repliesCount: 0, postedAt: 'Just now', replies: [] });
+    addForumThread({ id: `th-${Date.now()}`, authorName: user?.name || 'Kheti Member', authorRole: user?.role === 'farmer' ? 'Farmer' : 'Buyer / Trader', title: q.title, content: q.content || 'Seeking advice.', likes: 1, repliesCount: 0, postedAt: 'Just now', replies: [] });
     setQ({ title: '', content: '' }); setAskOpen(false);
   };
-  const postReply = id => {
+  const handlePostReply = id => {
     const text = replies[id]; if (!text?.trim()) return;
-    addReply(id, { author: 'You (Kheti Member)', text, time: 'Just now' });
+    addReply(id, { author: user?.name || 'Kheti Member', text, time: 'Just now' });
     setReplies(p => ({ ...p, [id]: '' }));
   };
 
@@ -171,7 +130,7 @@ export default function CommunitySection() {
                       <input type="text" placeholder="Write your answer..." value={replies[th.id] || ''}
                         onChange={e => setReplies(p => ({ ...p, [th.id]: e.target.value }))}
                         className="flex-1 text-xs border border-slate-200 rounded-xl px-3.5 py-2 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 bg-white" />
-                      <button onClick={() => postReply(th.id)} className="btn btn-primary btn-sm">
+                      <button onClick={() => handlePostReply(th.id)} className="btn btn-primary btn-sm">
                         <Send className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -191,11 +150,6 @@ export default function CommunitySection() {
               <h3 className="text-xl font-extrabold text-slate-900 mb-1">Agricultural Best Practices</h3>
               <p className="text-sm text-slate-500">Drip irrigation, organic pest control, soil management.</p>
             </div>
-            {isAdmin && (
-              <button onClick={() => setGuideModalOpen(true)} className="btn bg-slate-900 text-white hover:bg-slate-800 btn-sm font-extrabold flex items-center gap-1.5 shadow-md">
-                <Plus className="w-4 h-4 text-emerald-400" /> Add Guide (Admin)
-              </button>
-            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {filteredGuides.length === 0 ? (
@@ -332,60 +286,6 @@ export default function CommunitySection() {
               <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-4">{guide.summary}</p>
               <button onClick={() => setGuide(null)} className="btn btn-primary w-full">Close Guide</button>
             </div>
-          </div>
-        </div>
-      )}
-      {/* Admin Add Guide modal */}
-      {guideModalOpen && (
-        <div className="modal-overlay" onClick={() => setGuideModalOpen(false)}>
-          <div className="modal-card max-w-lg" onClick={e => e.stopPropagation()}>
-            <div className="bg-slate-900 p-5 rounded-t-[28px] text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-emerald-400" />
-                <h3 className="font-extrabold text-base">Add Advisory Guide (Admin)</h3>
-              </div>
-              <button onClick={() => setGuideModalOpen(false)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <form onSubmit={handlePostGuide} className="p-6 space-y-4">
-              <div className="form-group">
-                <label className="form-label">Guide Title *</label>
-                <input required type="text" placeholder="e.g. Modern Soil Aeration Techniques" value={newGuideData.title} onChange={e => setNewGuideData(p => ({ ...p, title: e.target.value }))} className="form-input" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="form-group">
-                  <label className="form-label">Category *</label>
-                  <select value={newGuideData.category} onChange={e => setNewGuideData(p => ({ ...p, category: e.target.value }))} className="form-input">
-                    <option value="Organic Farming">Organic Farming</option>
-                    <option value="Water Management">Water Management</option>
-                    <option value="Market Advisory">Market Advisory</option>
-                    <option value="Crop Protection">Crop Protection</option>
-                    <option value="Soil Health">Soil Health</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Read Time</label>
-                  <input type="text" placeholder="e.g. 6 min read" value={newGuideData.readTime} onChange={e => setNewGuideData(p => ({ ...p, readTime: e.target.value }))} className="form-input" />
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Author / Organization</label>
-                <input type="text" placeholder="e.g. ICAR Agri Advisory Council" value={newGuideData.author} onChange={e => setNewGuideData(p => ({ ...p, author: e.target.value }))} className="form-input" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Summary / Content *</label>
-                <textarea required rows="4" placeholder="Detailed description of farming best practices..." value={newGuideData.summary} onChange={e => setNewGuideData(p => ({ ...p, summary: e.target.value }))} className="form-textarea" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Cover Image URL (optional)</label>
-                <input type="url" placeholder="https://images.unsplash.com/..." value={newGuideData.image} onChange={e => setNewGuideData(p => ({ ...p, image: e.target.value }))} className="form-input" />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setGuideModalOpen(false)} className="btn btn-outline flex-1">Cancel</button>
-                <button type="submit" className="btn btn-primary flex-1 font-extrabold">Publish Guide</button>
-              </div>
-            </form>
           </div>
         </div>
       )}
